@@ -127,3 +127,53 @@ final_dataset AS (
 -- Output the clean, classified dataset
 SELECT * FROM final_dataset
 ORDER BY final_calculated_role, final_user_id;
+
+
+/*
+Query: Financial Outlier Detection (IQR Method)
+Objective: Identify transactions with abnormal value ("Whales") and measure their impact on the Average Basket Size KPI.
+Method: Using Interquartile Range (IQR). Outlier > Q3 + 1.5 * IQR.
+*/
+
+WITH stats AS (
+  SELECT
+    -- Calculate Quartiles (25th and 75th percentiles) to determine data distribution
+    APPROX_QUANTILES(total, 100)[OFFSET(25)] as q1,
+    APPROX_QUANTILES(total, 100)[OFFSET(75)] as q3,
+    AVG(total) as current_avg_ticket
+  FROM `bqproj-435911.Final_Project_2025.log_sales`
+),
+
+bounds AS (
+  SELECT 
+    q1, 
+    q3, 
+    (q3 - q1) as iqr,
+    -- Define the statistical threshold (Upper Fence) for an outlier
+    q3 + (1.5 * (q3 - q1)) as upper_fence,
+    current_avg_ticket
+  FROM stats
+)
+
+SELECT
+  b.current_avg_ticket as avg_with_outliers,
+  
+  -- Recalculate average EXCLUDING the outliers to find the "True" B2C average
+  (SELECT AVG(total) FROM `bqproj-435911.Final_Project_2025.log_sales` WHERE total <= b.upper_fence) as avg_without_outliers,
+  
+  -- Count the volume of outlier transactions
+  (SELECT COUNT(*) FROM `bqproj-435911.Final_Project_2025.log_sales` WHERE total > b.upper_fence) as outliers_count,
+  
+  b.upper_fence as threshold_value
+
+FROM bounds b;
+
+-- Payment Method Distribution:
+SELECT
+  payment_method,
+  COUNT(*) AS total,  -- Count the number of transactions for each payment method
+  COUNT(*) * 100.0 / SUM(COUNT(*)) OVER() AS percentage  -- Calculate the percentage of total transactions
+FROM `bqproj-435911.Final_Project_2025.log_sales`
+GROUP BY payment_method;
+
+
