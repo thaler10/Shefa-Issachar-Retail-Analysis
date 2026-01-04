@@ -1,4 +1,4 @@
-# 🛒 Retail Data Analysis: Shefa Issachar
+# 🛒 Retail Data Analysis Project: 'Shefa Issachar'
 ### Operational Optimization & Business Intelligence Strategy
 
 ## 📝 Introduction
